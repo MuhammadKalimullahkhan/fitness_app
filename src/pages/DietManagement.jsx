@@ -12,8 +12,8 @@ const DietManagement = ({ userProfile, setCurrentPage, showCustomNotification })
   const generateMealPlan = async () => {
     setLoading(true);
     setError(null);
+    setMealPlan([]); // Reset on new generation
     try {
-
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
       const systemPrompt = `You are a certified nutritionist. Generate a one-day meal plan in JSON format. 
       The JSON should be an array of objects. Each object must have a 'meal' (string, e.g., 'Breakfast', 'Lunch', 'Dinner'), 'food' (string), 'calories' (number), 'protein' (number), 'carbs' (number), and 'fats' (number) properties.
@@ -46,12 +46,26 @@ const DietManagement = ({ userProfile, setCurrentPage, showCustomNotification })
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+
       const result = await response.json();
-      const data = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text);
-      setMealPlan(data);
+      const mealPlanString = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (mealPlanString) {
+        const parsedPlan = JSON.parse(mealPlanString);
+        setMealPlan(parsedPlan || []);
+      } else {
+        setError("Failed to generate a valid meal plan from the response.");
+        setMealPlan([]);
+      }
+
     } catch (e) {
       console.error("Error generating meal plan:", e);
       setError("Failed to generate meal plan. Please try again.");
+      setMealPlan([]); // Ensure mealPlan is not undefined
     } finally {
       setLoading(false);
     }
@@ -93,4 +107,4 @@ const DietManagement = ({ userProfile, setCurrentPage, showCustomNotification })
   );
 };
 
-export default DietManagement
+export default DietManagement;

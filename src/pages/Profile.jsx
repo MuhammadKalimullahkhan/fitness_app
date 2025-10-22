@@ -1,30 +1,51 @@
-import { serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 
-
-const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage }) => {
-  const [newWeight, setNewWeight] = useState('');
+const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, showCustomNotification }) => {
+  const [age, setAge] = useState(userProfile?.age || '');
+  const [height, setHeight] = useState(userProfile?.height || '');
+  const [weight, setWeight] = useState(userProfile?.weight || '');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setUserProfile({ ...userProfile, [name]: value });
   };
 
-  const handleAddWeight = () => {
-    if (!newWeight || isNaN(newWeight)) {
-      showCustomNotification("Please enter a valid weight.");
+  const handleSave = (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (age <= 0 || age >= 150) {
+      showCustomNotification("Please enter a valid age (1-149).");
       return;
     }
-    const updatedHistory = [...(userProfile.weightHistory || []), { weight: parseFloat(newWeight), date: serverTimestamp() }];
-    setUserProfile({ ...userProfile, weightHistory: updatedHistory });
-    setNewWeight('');
+    if (height <= 4 || height >= 15) {
+      showCustomNotification("Please enter a valid height (4-15 feet).");
+      return;
+    }
+    if (weight <= 25) {
+      showCustomNotification("Please enter a valid weight (>25 kg).");
+      return;
+    }
+
+    // Unit Conversion and Saving
+    const heightInInches = height * 12;
+    const weightInLbs = weight * 2.20462;
+
+    const updatedProfile = {
+      ...userProfile,
+      age: parseInt(age),
+      height: heightInInches,
+      weight: weightInLbs,
+    };
+
+    onSaveProfile(updatedProfile);
   };
 
   return (
     <div className="flex flex-col items-center p-4">
       <div className="w-full bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
         <h2 className="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Edit Your Profile</h2>
-        <form onSubmit={onSaveProfile}>
+        <form onSubmit={handleSave}>
           <div className="mb-4">
             <label htmlFor="name" className="block text-gray-400 font-semibold mb-2">Name</label>
             <input
@@ -78,25 +99,44 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage })
               <option value="admin">Administrator</option>
             </select>
           </div>
-          <div className="mb-6">
-            <label htmlFor="weight" className="block text-gray-400 font-semibold mb-2">Log Your Weight (lbs)</label>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+
+          {/* New Personal Info Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+              <label htmlFor="age" className="block text-gray-400 font-semibold mb-2">Age</label>
+              <input
+                type="number"
+                id="age"
+                name="age"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label htmlFor="height" className="block text-gray-400 font-semibold mb-2">Height (feet)</label>
+              <input
+                type="number"
+                id="height"
+                name="height"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label htmlFor="weight" className="block text-gray-400 font-semibold mb-2">Weight (kg)</label>
               <input
                 type="number"
                 id="weight"
-                value={newWeight}
-                onChange={(e) => setNewWeight(e.target.value)}
+                name="weight"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
                 className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
               />
-              <button
-                type="button"
-                onClick={handleAddWeight}
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all text-white font-bold py-3 px-4 rounded-full shadow-lg"
-              >
-                Add
-              </button>
             </div>
           </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
             <button
               type="submit"
@@ -118,4 +158,4 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage })
   );
 };
 
-export default Profile
+export default Profile;

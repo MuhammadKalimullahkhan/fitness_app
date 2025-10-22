@@ -9,34 +9,45 @@ import {
   initialAuthToken
 } from "../EnvManager";
 
-
-
 const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification, db, userId }) => {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // New state for personal metrics
+  // Personal metrics state
   const [age, setAge] = useState('');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
-  const [goal, setGoal] = useState('Beginner'); // Default to Beginner
+  const [goal, setGoal] = useState('Beginner');
+
+  useEffect(() => {
+    if (userProfile) {
+      setAge(userProfile.age || '');
+      // Convert height from inches (DB) to feet for display
+      setHeight(userProfile.height ? (userProfile.height / 12).toFixed(2) : ''); 
+      // Convert weight from lbs (DB) to kg for display
+      setWeight(userProfile.weight ? (userProfile.weight / 2.20462).toFixed(2) : '');
+      setGoal(userProfile.fitnessGoal || 'Beginner');
+    }
+  }, [userProfile]);
 
   const generateWorkout = async () => {
     setLoading(true);
     setError(null);
     try {
-
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-      const systemPrompt = `You are an expert fitness trainer. Generate a full workout plan in JSON format for a user based on their personal data and fitness goal. 
-      The JSON should be an array of objects. Each object should have 'name' (string), 'reps' (number), 'time' (number, optional) and 'description' (string) properties. 
-      The 'reps' should be for strength exercises and 'time' for cardio/plank exercises.
-      Use simple exercises like pushups, squats, planks, situps, lunges.
-      For each exercise, provide a short, clear description. Do not include any intros or outros, just the JSON.`;
+      const systemPrompt = `You are an expert fitness trainer. Generate a workout plan in JSON format.
 
-      // Updated user query to include new fields
-      const userQuery = `Generate a workout plan for someone with a "${goal}" goal. User details: Age: ${age}, Height: ${height} inches, Weight: ${weight} lbs.`;
+Each exercise object must have:
+- 'name': (string) The name of the exercise.
+- 'description': (string) A short, clear description.
+- 'reps': (number or null) Repetitions for strength exercises. Must be null if time-based.
+- 'time': (number or null) Duration in seconds for time-based exercises. Must be null if rep-based.
+
+Only return the raw JSON array.`;
+
+      const userQuery = `Generate a workout plan for a "${goal}" goal. User: Age ${age}, Height ${userProfile.height}in, Weight ${userProfile.weight}lbs.`;
 
       const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
@@ -49,10 +60,11 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
               type: "OBJECT",
               properties: {
                 "name": { "type": "STRING" },
-                "reps": { "type": "NUMBER"},
-                "time": { "type": "NUMBER"},
+                "reps": { "type": "NUMBER", "nullable": true },
+                "time": { "type": "NUMBER", "nullable": true },
                 "description": { "type": "STRING" }
-              }
+              },
+              required: ["name", "description", "reps", "time"]
             }
           }
         }
@@ -63,33 +75,26 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const result = await response.json();
-      const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!responseText) {
-        throw new Error("Invalid or empty AI response.");
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(`AI API Error: ${result.error.message}`);
       }
 
+      const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!responseText) throw new Error("Invalid AI response (No content received).");
+
       const data = JSON.parse(responseText);
-      const workoutsWithPlaceholders = data.map(w => ({
-        ...w,
-        count: 0,
-      }));
-      setWorkouts(workoutsWithPlaceholders);
+      // Set workouts directly, without adding a 'completed' field
+      setWorkouts(data);
     } catch (e) {
       console.error("Error generating workout:", e);
-      setError("Failed to generate workout. Please try again.");
+      setError(`Failed to generate workout: ${e.message}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCounter = (index, delta) => {
-    setWorkouts(currentWorkouts => {
-      const newWorkouts = [...currentWorkouts];
-      newWorkouts[index].count = Math.max(0, newWorkouts[index].count + delta);
-      return newWorkouts;
-    });
   };
 
   const saveWorkoutToDb = async () => {
@@ -100,10 +105,14 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
     setSaving(true);
     try {
       const workoutsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'workout_logs');
+      
+      // Add the plan with an initial 'completed' status for each exercise
+      const planWithCompletion = workouts.map(exercise => ({ ...exercise, completed: false }));
+
       await addDoc(workoutsCollectionRef, {
-        plan: workouts.map(({ count, ...rest }) => rest), // Save only the plan, not the temporary count
+        plan: planWithCompletion, 
         createdAt: serverTimestamp(),
-        fitnessGoal: goal, // Save the goal selected on this page
+        fitnessGoal: goal,
       });
       showCustomNotification("Workout saved successfully!");
     } catch (e) {
@@ -118,9 +127,7 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
     <div className="flex flex-col items-center p-4">
       <div className="w-full bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
         <h2 className="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Your Workout Plan</h2>
-        <p className="text-gray-300 mb-4 text-center">
-          Enter your details below to get an AI-generated workout routine.
-        </p>
+        <p className="text-gray-300 mb-4 text-center">Your details are pre-filled. Generate an AI workout or adjust your goal.</p>
 
         {/* Personal Details Form */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -145,40 +152,33 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
               type="number"
               id="age"
               value={age}
-              onChange={(e) => setAge(e.target.value)}
+              readOnly
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
-              placeholder="e.g., 30"
             />
           </div>
           <div className="flex flex-col">
-            <label htmlFor="height" className="block text-gray-400 font-semibold mb-2">Height (inches)</label>
+            <label htmlFor="height" className="block text-gray-400 font-semibold mb-2">Height (feet)</label>
             <input
               type="number"
               id="height"
               value={height}
-              onChange={(e) => setHeight(e.target.value)}
+              readOnly
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
-              placeholder="e.g., 68"
             />
           </div>
           <div className="flex flex-col">
-            <label htmlFor="weight" className="block text-gray-400 font-semibold mb-2">Weight (lbs)</label>
+            <label htmlFor="weight" className="block text-gray-400 font-semibold mb-2">Weight (kg)</label>
             <input
               type="number"
               id="weight"
               value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              readOnly
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
-              placeholder="e.g., 150"
             />
           </div>
         </div>
 
-        <button
-          onClick={generateWorkout}
-          disabled={loading || !age || !height || !weight}
-          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all text-white font-bold py-3 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button onClick={generateWorkout} disabled={loading || !age || !height || !weight} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all text-white font-bold py-3 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? 'Generating...' : '✨ Generate Workout ✨'}
         </button>
 
@@ -192,25 +192,16 @@ const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification
                 <div key={index} className="bg-gray-700 p-4 rounded-xl shadow-inner border border-gray-600 flex flex-col items-start">
                   <h3 className="text-lg font-semibold mb-1 text-cyan-400">{exercise.name}</h3>
                   <p className="text-gray-300 text-sm">{exercise.description}</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    {exercise.reps ? `Reps: ${exercise.reps} : exercise.time ? Time: ${exercise.time}s` : 'N/A'}
+                  <p className="text-gray-400 text-xs mt-2 font-mono">
+                    {exercise.reps && `Reps: ${exercise.reps}`}
+                    {exercise.time && `Time: ${exercise.time}s`}
+                    {!exercise.reps && !exercise.time && 'N/A'}
                   </p>
-                  <div className="flex items-center justify-between w-full mt-3">
-                    <div className="flex items-center space-x-2">
-                      <button onClick={() => handleCounter(index, -1)} className="bg-red-500 hover:bg-red-600 transition-colors text-white py-1 px-3 rounded-full shadow-md text-sm">-</button>
-                      <span className="text-lg font-bold">{exercise.count}</span>
-                      <button onClick={() => handleCounter(index, 1)} className="bg-green-500 hover:bg-green-600 transition-colors text-white py-1 px-3 rounded-full shadow-md text-sm">+</button>
-                    </div>
-                  </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={saveWorkoutToDb}
-              disabled={saving}
-              className="mt-6 w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 transition-all text-white font-bold py-3 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Workout'}
+            <button onClick={saveWorkoutToDb} disabled={saving} className="mt-6 w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 transition-all text-white font-bold py-3 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+              {saving ? 'Saving...' : 'Save Workout Log'}
             </button>
           </>
         )}
