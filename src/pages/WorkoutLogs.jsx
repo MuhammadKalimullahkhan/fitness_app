@@ -40,7 +40,6 @@ const WorkoutLogs = ({ userId, db, showCustomNotification }) => {
 
       try {
         await updateDoc(logRef, { plan: updatedPlan });
-        // The onSnapshot listener will automatically update the UI
       } catch (e) {
         console.error("Error updating workout status:", e);
         showCustomNotification("Failed to update workout status.");
@@ -75,7 +74,6 @@ const WorkoutLogs = ({ userId, db, showCustomNotification }) => {
                 <p className="text-gray-400 text-sm font-medium">{new Date(log.createdAt?.toDate()).toLocaleDateString()}</p>
               </div>
 
-              {/* Progress Bar */}
               <div className="mt-4 mb-4">
                 <div className="flex justify-between mb-1">
                   <span className="text-base font-medium text-cyan-400">Workout Progress</span>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { appId, apiKey } from '../EnvManager';
 
-const Dashboard = ({ userProfile, setCurrentPage, showCustomNotification, db, userId }) => {
+const Dashboard = ({ userProfile, showCustomNotification, db, userId }) => {
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
   const [recommendation, setRecommendation] = useState('');
   const [workoutProgress, setWorkoutProgress] = useState(0);
@@ -50,7 +51,6 @@ const Dashboard = ({ userProfile, setCurrentPage, showCustomNotification, db, us
     return () => unsubscribe();
   }, [db, userId]);
 
-  // Generate a recommendation when the user profile is loaded
   const generateRecommendation = async () => {
     if (!userProfile) return;
     setLoadingRecommendation(true);
@@ -109,43 +109,40 @@ const Dashboard = ({ userProfile, setCurrentPage, showCustomNotification, db, us
           <div className="flex justify-around items-center">{progressCircle(workoutProgress, userProfile?.fitnessGoal || "Workout Goal")}{progressCircle(dietProgress, userProfile?.dietPreference || "Diet Goal")}</div>
         </div>
 
-        {/* Refactored Layout for Stats, Recommendation, and Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
-            <h3 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Quick Stats</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className='border border-slate-700 rounded-lg p-2 px-4'>
-                <h4 className="text-lg font-semibold mb-2 text-emerald-300">Fitness Goal</h4>
-                <p className="text-gray-300 text-sm">{userProfile?.fitnessGoal || 'Not set'}</p>
-              </div>
-              <div className='border border-slate-700 rounded-lg p-2 px-4'>
-                <h4 className="text-lg font-semibold mb-2 text-emerald-300">Diet Goal</h4>
-                <p className="text-gray-300 text-sm">{userProfile?.dietPreference || 'Not set'}</p>
-              </div>
-              <div className='col-span-2 border border-slate-700 rounded-lg p-2 px-4'>
-                <h4 className="text-lg font-semibold mb-2 text-emerald-300">Weight History</h4>
-                {userProfile?.weightHistory?.length > 0 ? (<p className="text-gray-300 text-sm">Current Weight: <span className='px-2 p-1 bg-green-900/50 text-white rounded-full'>{userProfile.weightHistory.slice(-1)[0]?.weight} lbs.</span></p>) : (<p className="text-gray-400 text-sm">No weight data logged yet.</p>)}
-              </div>
+        <div className="bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700 mb-8">
+          <h3 className="text-lg font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Quick Stats</h3>
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-semibold text-emerald-300">Fitness Goal</h4>
+              <p className="text-gray-300 text-sm">{userProfile?.fitnessGoal || 'Not set'}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-emerald-300">Diet Goal</h4>
+              <p className="text-gray-300 text-sm">{userProfile?.dietPreference || 'Not set'}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-emerald-300">Weight History</h4>
+              {userProfile?.weightHistory?.length > 0 ? (<p className="text-gray-300 text-sm">Current: <span className='px-2 py-1 bg-green-900/50 text-white rounded-full'>{userProfile.weightHistory.slice(-1)[0]?.weight} lbs.</span></p>) : (<p className="text-gray-400 text-sm">No weight data.</p>)}
             </div>
           </div>
-
-          <div className="bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
-            <h3 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Personalized Recommendation</h3>
-            <div className="bg-gray-700 p-4 rounded-xl shadow-inner border border-gray-600 flex items-center justify-center">
-              {loadingRecommendation ? (<p className="text-gray-400 animate-pulse">Generating...</p>) : (<p className="text-gray-300 text-sm italic">{recommendation}</p>)}
-            </div>
-          </div>
-
-          {/* <div className="md:col-span-2 bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700 mt-8">
-            <h3 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Quick Actions</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <button onClick={() => setCurrentPage('WorkoutManagement')} className="bg-gray-700 hover:bg-emerald-500 transition-colors p-4 rounded-2xl shadow-md">Workout</button>
-              <button onClick={() => setCurrentPage('DietManagement')} className="bg-gray-700 hover:bg-emerald-500 transition-colors p-4 rounded-2xl shadow-md">Diet</button>
-              <button onClick={() => setCurrentPage('WorkoutLogs')} className="bg-gray-700 hover:bg-emerald-500 transition-colors p-4 rounded-2xl shadow-md">Logs</button>
-              <button onClick={() => setCurrentPage('Profile')} className="bg-gray-700 hover:bg-emerald-500 transition-colors p-4 rounded-2xl shadow-md">Profile</button>
-            </div>
-          </div> */}
         </div>
+
+        <div className="bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
+          <h3 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Personalized Recommendation</h3>
+          <div className="bg-gray-700 p-4 rounded-xl shadow-inner border border-gray-600 flex items-center justify-center">
+            {loadingRecommendation ? (<p className="text-gray-400 animate-pulse">Generating...</p>) : (<p className="text-gray-300 text-sm italic">{recommendation}</p>)}
+          </div>
+        </div>
+
+        {/* <div className="md:col-span-2 bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700">
+          <h3 className="text-lg font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <Link to="/workout-plan" className="bg-emerald-500 hover:bg-emerald-600 transition-colors p-4 rounded-xl shadow-md font-semibold">Workout Plan</Link>
+            <Link to="/diet" className="bg-emerald-500 hover:bg-emerald-600 transition-colors p-4 rounded-xl shadow-md font-semibold">Diet Plan</Link>
+            <Link to="/workout-logs" className="bg-gray-700 hover:bg-gray-600 transition-colors p-4 rounded-xl shadow-md">Workout Logs</Link>
+            <Link to="/forum" className="bg-gray-700 hover:bg-gray-600 transition-colors p-4 rounded-xl shadow-md">Community Forum</Link>
+          </div>
+        </div> */}
       </div>
     </div>
   );

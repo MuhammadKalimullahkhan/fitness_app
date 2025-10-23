@@ -4,7 +4,7 @@ import {
 } from "../EnvManager";
 
 
-const DietManagement = ({ userProfile, setCurrentPage, showCustomNotification }) => {
+const DietManagement = ({ userProfile, showCustomNotification }) => {
   const [mealPlan, setMealPlan] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

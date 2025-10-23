@@ -1,32 +1,28 @@
 import { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import {
   apiKey,
-  firebaseConfig,
-  appId,
-  initialAuthToken
+  appId
 } from "../EnvManager";
+import { Link, useNavigate } from 'react-router-dom';
+import { Dumbbell } from 'lucide-react';
 
-const WorkoutManagement = ({ userProfile, setCurrentPage, showCustomNotification, db, userId }) => {
+const WorkoutManagement = ({ userProfile, showCustomNotification, db, userId }) => {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  // Personal metrics state
   const [age, setAge] = useState('');
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [goal, setGoal] = useState('Beginner');
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (userProfile) {
       setAge(userProfile.age || '');
-      // Convert height from inches (DB) to feet for display
-      setHeight(userProfile.height ? (userProfile.height / 12).toFixed(2) : ''); 
-      // Convert weight from lbs (DB) to kg for display
+      setHeight(userProfile.height ? (userProfile.height / 12).toFixed(2) : '');
       setWeight(userProfile.weight ? (userProfile.weight / 2.20462).toFixed(2) : '');
       setGoal(userProfile.fitnessGoal || 'Beginner');
     }
@@ -47,7 +43,7 @@ Each exercise object must have:
 
 Only return the raw JSON array.`;
 
-      const userQuery = `Generate a workout plan for a "${goal}" goal. User: Age ${age}, Height ${userProfile.height}in, Weight ${userProfile.weight}lbs.`;
+      const userQuery = `Generate a workout plan for a "${goal}" goal. User: Age ${age}, Height ${height}ft, Weight ${weight}kg.`;
 
       const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
@@ -64,7 +60,7 @@ Only return the raw JSON array.`;
                 "time": { "type": "NUMBER", "nullable": true },
                 "description": { "type": "STRING" }
               },
-              required: ["name", "description", "reps", "time"]
+              required: ["name", "description"]
             }
           }
         }
@@ -87,7 +83,6 @@ Only return the raw JSON array.`;
       if (!responseText) throw new Error("Invalid AI response (No content received).");
 
       const data = JSON.parse(responseText);
-      // Set workouts directly, without adding a 'completed' field
       setWorkouts(data);
     } catch (e) {
       console.error("Error generating workout:", e);
@@ -105,16 +100,17 @@ Only return the raw JSON array.`;
     setSaving(true);
     try {
       const workoutsCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'workout_logs');
-      
-      // Add the plan with an initial 'completed' status for each exercise
+
       const planWithCompletion = workouts.map(exercise => ({ ...exercise, completed: false }));
 
       await addDoc(workoutsCollectionRef, {
-        plan: planWithCompletion, 
+        plan: planWithCompletion,
         createdAt: serverTimestamp(),
         fitnessGoal: goal,
       });
       showCustomNotification("Workout saved successfully!");
+
+      navigate("/workout-logs");
     } catch (e) {
       console.error("Error saving workout:", e);
       showCustomNotification("Failed to save workout. Please try again.");
@@ -124,12 +120,18 @@ Only return the raw JSON array.`;
   };
 
   return (
-    <div className="flex flex-col items-center p-4">
+    <div className="flex flex-col items-center p-4 gap-6">
       <div className="w-full bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
-        <h2 className="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Your Workout Plan</h2>
-        <p className="text-gray-300 mb-4 text-center">Your details are pre-filled. Generate an AI workout or adjust your goal.</p>
+        <h2 className="text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Your Workout History</h2>
+        <p className="text-gray-300 mb-4">Your Ai Generate Workouts.</p>
 
-        {/* Personal Details Form */}
+        <Link to={"/workout-logs"} className='flex items-center justify-center gap-2 w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 transition-all text-white font-bold py-3 rounded-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed'><Dumbbell /> Your Workouts</Link>
+      </div>
+
+      <div className="w-full bg-gray-800 p-6 rounded-3xl shadow-lg border border-gray-700">
+        <h2 className="text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">Your Workout Plan</h2>
+        <p className="text-gray-300 mb-8">Your details are pre-filled. Generate an AI workout or adjust your goal.</p>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="flex flex-col">
             <label htmlFor="goal" className="block text-gray-400 font-semibold mb-2">Fitness Goal</label>
@@ -193,9 +195,8 @@ Only return the raw JSON array.`;
                   <h3 className="text-lg font-semibold mb-1 text-cyan-400">{exercise.name}</h3>
                   <p className="text-gray-300 text-sm">{exercise.description}</p>
                   <p className="text-gray-400 text-xs mt-2 font-mono">
-                    {exercise.reps && `Reps: ${exercise.reps}`}
-                    {exercise.time && `Time: ${exercise.time}s`}
-                    {!exercise.reps && !exercise.time && 'N/A'}
+                    {exercise.reps ? `Reps: ${exercise.reps}` : ''}
+                    {exercise.time ? `Time: ${exercise.time}s` : ''}
                   </p>
                 </div>
               ))}

@@ -1,17 +1,11 @@
-import { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
+import { useState } from 'react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import {
   apiKey,
-  firebaseConfig,
-  appId,
-  initialAuthToken
+  appId
 } from "../EnvManager";
 
-
-
-const Forum = ({ db, userId, userProfile, forumPosts, setCurrentPage, showCustomNotification }) => {
+const Forum = ({ db, userId, userProfile, forumPosts, showCustomNotification }) => {
   const [newPost, setNewPost] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiError, setAIError] = useState(null);
@@ -20,7 +14,6 @@ const Forum = ({ db, userId, userProfile, forumPosts, setCurrentPage, showCustom
     e.preventDefault();
     if (!newPost.trim() || !db) return;
     try {
-
       const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts');
       await addDoc(postsRef, {
         authorId: userId,
@@ -44,7 +37,6 @@ const Forum = ({ db, userId, userProfile, forumPosts, setCurrentPage, showCustom
     try {
       await handlePostSubmit({ preventDefault: () => { } });
 
-
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
       const systemPrompt = "You are an AI-powered fitness trainer named 'Mighty Trainer'. Provide a helpful and encouraging response to the user's question. Keep the response concise and friendly. Your goal is to give a good starting point for advice. Do not mention that you are an AI or bot.";
       const userQuery = newPost;
@@ -64,7 +56,6 @@ const Forum = ({ db, userId, userProfile, forumPosts, setCurrentPage, showCustom
       const aiResponseText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (aiResponseText) {
-
         const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts');
         await addDoc(postsRef, {
           authorId: "AI",

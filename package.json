@@ -13,8 +13,11 @@
     "@tailwindcss/vite": "^4.1.10",
     "firebase": "^11.9.1",
     "formik": "^2.4.6",
+    "lucide-react": "^0.546.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.9.4",
     "tailwindcss": "^4.1.10",
     "yup": "^1.7.1"
   },

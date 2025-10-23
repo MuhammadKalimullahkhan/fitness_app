@@ -1,45 +1,75 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, showCustomNotification }) => {
-  const [age, setAge] = useState(userProfile?.age || '');
-  const [height, setHeight] = useState(userProfile?.height || '');
-  const [weight, setWeight] = useState(userProfile?.weight || '');
+const Profile = ({ userProfile, onSaveProfile, showCustomNotification }) => {
+  const [formData, setFormData] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        name: userProfile.name || '',
+        fitnessGoal: userProfile.fitnessGoal || 'Beginner',
+        dietPreference: userProfile.dietPreference || 'Weight Loss',
+        role: userProfile.role || 'user',
+        age: userProfile.age || '',
+        height: userProfile.height ? (userProfile.height / 12).toFixed(1) : '',
+        weight: userProfile.weight ? (userProfile.weight / 2.20462).toFixed(1) : '',
+      });
+    }
+  }, [userProfile]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setUserProfile({ ...userProfile, [name]: value });
+    setFormData({ ...formData, [name]: value });
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
+    if (!formData) return;
 
-    // Validation
-    if (age <= 0 || age >= 150) {
+    const age = parseInt(formData.age);
+    const height = parseFloat(formData.height);
+    const weight = parseFloat(formData.weight);
+
+    if (!age || age <= 0 || age >= 150) {
       showCustomNotification("Please enter a valid age (1-149).");
       return;
     }
-    if (height <= 4 || height >= 15) {
-      showCustomNotification("Please enter a valid height (4-15 feet).");
+    if (!height || height <= 4 || height >= 10) {
+      showCustomNotification("Please enter a valid height (4-10 feet).");
       return;
     }
-    if (weight <= 25) {
-      showCustomNotification("Please enter a valid weight (>25 kg).");
+    if (!weight || weight <= 25 || weight >= 1000) {
+      showCustomNotification("Please enter a valid weight (25-1000 kg).");
       return;
     }
-
-    // Unit Conversion and Saving
-    const heightInInches = height * 12;
-    const weightInLbs = weight * 2.20462;
 
     const updatedProfile = {
       ...userProfile,
-      age: parseInt(age),
-      height: heightInInches,
-      weight: weightInLbs,
+      ...formData,
+      age: age,
+      height: height * 12,
+      weight: weight * 2.20462,
     };
+    
+    const lastWeightEntry = userProfile.weightHistory?.[userProfile.weightHistory.length - 1];
+    const newWeightLbs = updatedProfile.weight;
 
-    onSaveProfile(updatedProfile);
+    if (!lastWeightEntry || Math.abs(lastWeightEntry.weight - newWeightLbs) > 0.1) {
+        updatedProfile.weightHistory = [
+            ...(userProfile.weightHistory || []),
+            { date: new Date().toISOString(), weight: newWeightLbs }
+        ];
+    }
+
+    await onSaveProfile(updatedProfile);
+    navigate('/');
   };
+
+  if (!formData) {
+    return <div className="text-center p-8">Loading profile...</div>;
+  }
 
   return (
     <div className="flex flex-col items-center p-4">
@@ -52,7 +82,7 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
               type="text"
               id="name"
               name="name"
-              value={userProfile?.name || ''}
+              value={formData.name}
               onChange={handleInputChange}
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
             />
@@ -62,7 +92,7 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
             <select
               id="fitnessGoal"
               name="fitnessGoal"
-              value={userProfile?.fitnessGoal || 'Beginner'}
+              value={formData.fitnessGoal}
               onChange={handleInputChange}
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
             >
@@ -77,7 +107,7 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
             <select
               id="dietPreference"
               name="dietPreference"
-              value={userProfile?.dietPreference || 'Weight Loss'}
+              value={formData.dietPreference}
               onChange={handleInputChange}
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
             >
@@ -90,7 +120,7 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
             <select
               id="role"
               name="role"
-              value={userProfile?.role || 'user'}
+              value={formData.role}
               onChange={handleInputChange}
               className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
             >
@@ -100,7 +130,6 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
             </select>
           </div>
 
-          {/* New Personal Info Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label htmlFor="age" className="block text-gray-400 font-semibold mb-2">Age</label>
@@ -108,8 +137,8 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
                 type="number"
                 id="age"
                 name="age"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
+                value={formData.age}
+                onChange={handleInputChange}
                 className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
               />
             </div>
@@ -117,10 +146,11 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
               <label htmlFor="height" className="block text-gray-400 font-semibold mb-2">Height (feet)</label>
               <input
                 type="number"
+                step="0.1"
                 id="height"
                 name="height"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
+                value={formData.height}
+                onChange={handleInputChange}
                 className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
               />
             </div>
@@ -128,10 +158,11 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
               <label htmlFor="weight" className="block text-gray-400 font-semibold mb-2">Weight (kg)</label>
               <input
                 type="number"
+                step="0.1"
                 id="weight"
                 name="weight"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                value={formData.weight}
+                onChange={handleInputChange}
                 className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
               />
             </div>
@@ -146,7 +177,7 @@ const Profile = ({ userProfile, setUserProfile, onSaveProfile, setCurrentPage, s
             </button>
             <button
               type="button"
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigate('/')}
               className="w-full sm:w-1/2 bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold py-3 rounded-full shadow-lg"
             >
               Cancel
