@@ -27,3 +27,4 @@ dist-ssr
 
 # custom
 .backups/*
+bun.lock
