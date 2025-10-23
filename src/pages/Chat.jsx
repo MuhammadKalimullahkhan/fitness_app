@@ -434,7 +434,7 @@ const Chat = ({ db, userId, userProfile }) => {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-gray-950 z-50 font-sans">
+    <div className="max-w-lg mx-auto fixed inset-0 flex flex-col bg-gray-950 z-50 font-sans">
       <header className="flex items-center justify-start px-5 py-4 bg-gray-900 border-b border-gray-800 shadow-lg">
         <div className="flex items-center gap-3">
           <button

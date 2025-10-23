@@ -140,15 +140,17 @@ const App = () => {
         <Route path="/login" element={<LoginPage onLogin={handleLogin} onGoogleSignIn={handleGoogleSignIn} onSignUp={handleSignUp} error={error} />} />
         {
           userId ? (
-            <Route element={<Layout userId={userId} handleLogout={handleLogout} />}>
-              <Route path="/" element={<Dashboard userProfile={userProfile} userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
-              <Route path="/profile" element={<Profile userProfile={userProfile} onSaveProfile={handleSaveProfile} showCustomNotification={showCustomNotification} />} />
-              <Route path="/diet" element={<DietManagement userProfile={userProfile} showCustomNotification={showCustomNotification} />} />
-              <Route path="/workout-plan" element={<WorkoutManagement userProfile={userProfile} showCustomNotification={showCustomNotification} db={db} userId={userId} />} />
-              <Route path="/workout-logs" element={<WorkoutLogs userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
-              <Route path="/forum" element={<Forum db={db} userId={userId} userProfile={userProfile} forumPosts={forumPosts} showCustomNotification={showCustomNotification} />} />
+            <>
+              <Route element={<Layout userId={userId} handleLogout={handleLogout} />}>
+                <Route path="/" element={<Dashboard userProfile={userProfile} userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
+                <Route path="/profile" element={<Profile userProfile={userProfile} onSaveProfile={handleSaveProfile} showCustomNotification={showCustomNotification} />} />
+                <Route path="/diet" element={<DietManagement userProfile={userProfile} showCustomNotification={showCustomNotification} />} />
+                <Route path="/workout-plan" element={<WorkoutManagement userProfile={userProfile} showCustomNotification={showCustomNotification} db={db} userId={userId} />} />
+                <Route path="/workout-logs" element={<WorkoutLogs userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
+                <Route path="/forum" element={<Forum db={db} userId={userId} userProfile={userProfile} forumPosts={forumPosts} showCustomNotification={showCustomNotification} />} />
+              </Route>
               <Route path="/chat" element={<Chat userProfile={userProfile} db={db} userId={userId} />} />
-            </Route>
+            </>
           ) : (
             <Route path="/*" element={<Navigate to="/login" replace />} />
           )
