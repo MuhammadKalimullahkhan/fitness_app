@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp, addDoc, query, orderBy } from 'firebase/firestore';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { apiKey, firebaseConfig, appId } from './EnvManager';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
@@ -24,38 +24,30 @@ const App = () => {
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '' });
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     const firebaseApp = initializeApp(firebaseConfig);
     setApp(firebaseApp);
     setDb(getFirestore(firebaseApp));
 
     const auth = getAuth(firebaseApp);
-    signInAnonymously(auth).catch((error) => {
-      console.error("Anonymous sign-in failed:", error);
-      setError("Anonymous sign-in failed. Please try again later.");
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        setUserId(null);
+      }
+      setIsAuthReady(true);
     });
+
+    return () => unsubscribe();
   }, []);
 
   const showCustomNotification = (message) => {
     setNotification({ show: true, message });
     setTimeout(() => setNotification({ show: false, message: '' }), 3000);
   };
-
-  useEffect(() => {
-    if (app) {
-      const auth = getAuth(app);
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          setUserId(user.uid);
-        } else {
-          setUserId(null);
-          setUserProfile(null);
-        }
-        setIsAuthReady(true);
-      });
-      return () => unsubscribe();
-    }
-  }, [app]);
 
   useEffect(() => {
     if (userId && db && appId) {
@@ -92,18 +84,38 @@ const App = () => {
   };
 
   const handleLogin = async (email, password) => {
-    // Implement your login logic here
-    setError('Login functionality is not implemented yet.');
+    if (!app) return;
+    const auth = getAuth(app);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/");
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   const handleGoogleSignIn = async () => {
-    // Implement Google Sign-In logic here
-    setError('Google Sign-In is not implemented yet.');
+    if (!app) return;
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      navigate("/");
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   const handleSignUp = async (email, password) => {
-    // Implement Sign-Up logic here
-    setError('Sign-Up functionality is not implemented yet.');
+    if (!app) return;
+    const auth = getAuth(app);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      await handleLogin(email, password);
+      navigate("/");
+    } catch (error) {
+      setError(error.message);
+    }
   };
 
   const handleLogout = async () => {
@@ -128,17 +140,15 @@ const App = () => {
         <Route path="/login" element={<LoginPage onLogin={handleLogin} onGoogleSignIn={handleGoogleSignIn} onSignUp={handleSignUp} error={error} />} />
         {
           userId ? (
-            <>
-              <Route element={<Layout userId={userId} handleLogout={handleLogout} />}>
-                <Route path="/" element={<Dashboard userProfile={userProfile} userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
-                <Route path="/profile" element={<Profile userProfile={userProfile} onSaveProfile={handleSaveProfile} showCustomNotification={showCustomNotification} />} />
-                <Route path="/diet" element={<DietManagement userProfile={userProfile} showCustomNotification={showCustomNotification} />} />
-                <Route path="/workout-plan" element={<WorkoutManagement userProfile={userProfile} showCustomNotification={showCustomNotification} db={db} userId={userId} />} />
-                <Route path="/workout-logs" element={<WorkoutLogs userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
-                <Route path="/forum" element={<Forum db={db} userId={userId} userProfile={userProfile} forumPosts={forumPosts} showCustomNotification={showCustomNotification} />} />
-              </Route>
+            <Route element={<Layout userId={userId} handleLogout={handleLogout} />}>
+              <Route path="/" element={<Dashboard userProfile={userProfile} userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
+              <Route path="/profile" element={<Profile userProfile={userProfile} onSaveProfile={handleSaveProfile} showCustomNotification={showCustomNotification} />} />
+              <Route path="/diet" element={<DietManagement userProfile={userProfile} showCustomNotification={showCustomNotification} />} />
+              <Route path="/workout-plan" element={<WorkoutManagement userProfile={userProfile} showCustomNotification={showCustomNotification} db={db} userId={userId} />} />
+              <Route path="/workout-logs" element={<WorkoutLogs userId={userId} db={db} showCustomNotification={showCustomNotification} />} />
+              <Route path="/forum" element={<Forum db={db} userId={userId} userProfile={userProfile} forumPosts={forumPosts} showCustomNotification={showCustomNotification} />} />
               <Route path="/chat" element={<Chat userProfile={userProfile} db={db} userId={userId} />} />
-            </>
+            </Route>
           ) : (
             <Route path="/*" element={<Navigate to="/login" replace />} />
           )
